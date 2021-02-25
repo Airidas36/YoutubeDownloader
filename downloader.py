@@ -7,6 +7,7 @@ import os
 import shutil
 import glob
 import re
+import platform
 
 def menu():
     while(True):
@@ -66,7 +67,7 @@ def convert_to_mp3(file):
     mp3_filename = re.subn('(\.mp4|\.webm)$', '.mp3', file) #Replace .mp4 or.webm with .mp3
     if mp3_filename[1] > 0: #If replacement was made, try to convert
         try:
-            print("Trying to convert " + mp3_filename[0])
+            print("Trying to convert " + file)
             AudioSegment.from_file(file).export(mp3_filename[0], format='mp3', bitrate="320k")
         except Exception as e:
             print(e)
@@ -88,6 +89,10 @@ def convert_playlist():
             convert_to_mp3(file)
 
 def main():
+    sys_type = platform.system()
+    if sys_type == "Windows": #Check for Windows system
+        app_path = os.path.join(os.getcwd(), '\\ffmpeg\bin')
+        os.environ["PATH"] += os.pathsep + app_path #Add ffmpeg lib to PATH for this proccess
     menu()
 
 if __name__ == "__main__":
