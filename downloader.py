@@ -91,7 +91,7 @@ def convert_playlist():
 def main():
     sys_type = platform.system()
     if sys_type == "Windows": #Check for Windows system
-        app_path = os.path.join(os.getcwd(), '\\ffmpeg\bin')
+        app_path = os.path.join(os.getcwd(), 'ffmpeg\\bin')
         os.environ["PATH"] += os.pathsep + app_path #Add ffmpeg lib to PATH for this proccess
     menu()
 
