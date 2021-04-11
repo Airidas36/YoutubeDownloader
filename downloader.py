@@ -18,16 +18,20 @@ import multiprocessing
 
 def menu():
     while(True):
+        os.system('cls' if os.name == 'nt' else 'clear')
         choice = input("Select your options:\n1. Download songs from a playlist\n2. Download a single song\n")
-        choice = int(choice)
-        if(choice == 1):
-            downloadPlaylist()
-            break
-        elif(choice == 2):
-            downloadSong()
-            break
-        else:
-            print("No such option.")
+        try:
+            choice = int(choice)
+            if(choice == 1):
+                downloadPlaylist()
+                break
+            elif(choice == 2):
+                downloadSong()
+                break
+            else:
+                print("No such option.")
+        except Exception:
+            print("Unsupported character")
 
 def downloadSong():
     root = os.getcwd()
@@ -64,9 +68,24 @@ def download(video):
             print("Average bitrate for " + video.title +" is " + bitrate)
         stream = video.streams.filter(only_audio=True).order_by("abr").desc().first() #Sort streams by average bitrate, pick the highes
         stream.download()
-    except Exception as e:
-        print (f'----------{video.title} could not be downloaded.')
-        print(e)
+    except Exception as error:
+        retry_success = False
+        for _ in range(5):
+            try:
+                print(f'Retrying download of {video.title}')
+                stream.download()
+            except Exception:
+                pass
+            else:
+                retry_success = True
+                break
+        if not retry_success:
+            print(f'----------- {error}')
+            print(f'---------- {video.title} could not be downloaded. Logging to file.\n')
+            with open ("error_log.txt", 'a') as log:
+                log.write(f'{video.title} - {video.watch_url}\n')
+        else:
+            print(f'{video.title} downloaded.')
     else:
         print(f'{video.title} downloaded.')
 
