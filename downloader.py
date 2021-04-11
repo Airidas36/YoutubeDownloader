@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+import warnings
+warnings.filterwarnings("ignore", message="Couldn't find ffmpeg or avconv - defaulting to ffmpeg, but may not work")
+'''
+Ignoring the runtime warning for ffmpeg lib when script is run on Windows platform
+'''
 from pytube import YouTube
 from pytube import Stream
 from pytube import Playlist
@@ -8,6 +13,8 @@ import shutil
 import glob
 import re
 import platform
+import concurrent.futures
+import multiprocessing
 
 def menu():
     while(True):
@@ -45,8 +52,8 @@ def downloadPlaylist():
         shutil.rmtree(new_folder) #Overwrite if exists
     os.mkdir(new_folder)
     os.chdir(new_folder)
-    for video in playlist.videos:
-        download(video)
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        executor.map(download, playlist.videos)
     convert_playlist()
     os.chdir(root)
 
@@ -55,24 +62,24 @@ def download(video):
         bitrate = re.search('\w*kbps', str(video.streams.filter(only_audio=True).order_by("abr").desc().first())).group(0) #Extract average bitrate from stream
         if bitrate:
             print("Average bitrate for " + video.title +" is " + bitrate)
-        stream = video.streams.filter(only_audio=True).order_by("abr").desc().first() #Sort streams by average bitrate, pick the highest
+        stream = video.streams.filter(only_audio=True).order_by("abr").desc().first() #Sort streams by average bitrate, pick the highes
         stream.download()
     except Exception as e:
-        print("----------" + video.title + " could not be downloaded.")
+        print (f'----------{video.title} could not be downloaded.')
         print(e)
     else:
-        print(video.title + " downloaded.")
+        print(f'{video.title} downloaded.')
 
 def convert_to_mp3(file):
     mp3_filename = re.subn('(\.mp4|\.webm)$', '.mp3', file) #Replace .mp4 or.webm with .mp3
     if mp3_filename[1] > 0: #If replacement was made, try to convert
         try:
-            print("Trying to convert " + file)
+            print(f'Trying to convert {file}')
             AudioSegment.from_file(file).export(mp3_filename[0], format='mp3', bitrate="320k")
         except Exception as e:
             print(e)
         else:
-            print("Successfully converted " + mp3_filename[0])
+            print(f'Successfully converted {mp3_filename[0]}')
             remove_old(file)
 
 def remove_old(file): #Removing the .mp4/.webm after conversion to .mp3
@@ -80,13 +87,18 @@ def remove_old(file): #Removing the .mp4/.webm after conversion to .mp3
         try:
             os.remove(file)
         except:
-            print("Failed to remove the old version of " + file)
+            print(f'Failed to remove the old version of {file}')
 
 def convert_playlist():
     extension_list = ('*.mp4', '*.webm')
+    conversion_processes = [] # List of conversion processes that will be joined
     for extension in extension_list: #Recursively iterate through folder and check for files with .mp4 and .webm extensions
         for file in glob.glob(extension):
-            convert_to_mp3(file)
+            process = multiprocessing.Process(target = convert_to_mp3, args = [file]) # Creating a process
+            conversion_processes.append(process)
+            process.start()
+    for process in conversion_processes:
+        process.join() # Joining the processes
 
 def main():
     sys_type = platform.system()
